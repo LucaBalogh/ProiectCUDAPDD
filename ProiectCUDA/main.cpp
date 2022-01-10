@@ -20,6 +20,16 @@ void printMatrix(double** V, int M, int N) {
     }
 }
 
+void scrieRezultatInFisier(double** V, int M, int N) {
+    ofstream f("rezultat.txt");
+    for (int i = 0; i < M; i++) {
+        for (int j = 0; j < N; j++)
+            f << V[i][j] << " ";
+        f << endl;
+    }
+    f.close();
+}
+
 int matriceEgale(double** A, double** B, int M, int N) {
     for (int i = 0; i < M; i++)
         for (int j = 0; j < N; j++)
@@ -114,7 +124,7 @@ int main()
     n = 3;
     p = 4;
     double** F;
-    genereazaSiIncarcaMatrice(M,N);
+    //genereazaSiIncarcaMatrice(M,N);
     F = citesteMatrice(M, N);
     double** V = new double* [M];
     double** V1 = new double* [M];
@@ -138,7 +148,9 @@ int main()
     kernel(F, W, V1, M, N, m, n);
     printMatrix(V1, M, N);
 
-    cout<<"Egalitatea matricelor: "<< matriceEgale(V, V1, M, N)<<endl;
+    cout<<"\nEgalitatea matricelor: "<< matriceEgale(V, V1, M, N)<<endl;
+
+    scrieRezultatInFisier(V1, M, N);
 
     for (int i = 0; i < M; i++) {
         delete[] F[i];

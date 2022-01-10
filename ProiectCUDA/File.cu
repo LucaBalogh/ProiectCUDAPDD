@@ -1,111 +1,100 @@
+#include <iostream>
 #include "cuda_runtime.h"
 #include "./Header.cuh"
 #include "device_launch_parameters.h"
 using namespace std;
 
-__global__ void transformareMatriceKernel(double** F, double** W, double** V, int M, int N, int m, int n) {
-    // Get thread ID.
-    int threadID = blockDim.x * blockIdx.x + threadIdx.x;
+__global__ void transformareMatriceKernel(double* F, double* W, double* V, int M, int N, int m, int n) { 
+    
+    int index = blockDim.x * blockIdx.x + threadIdx.x;
+    int col = index % N;
+    int row = index / N;
 
-    // Check if thread is within array bounds.
-    if (threadID < M) {
-        //transformaLinie(F, W, V, M, N, m, n, threadID);
+    if (col < N && row < M) {
         int k = m / 2, l = n / 2, ap, am, bp, bm;
         double v = 0;
-        for (int j = 0; j < N; j++) {
-            for (int a = 0; a <= k; a++) {
-                ap = threadID + a;
-                am = threadID - a;
-                if (am < 0)
-                    am = 0;
-                if (ap >= M)
-                    ap = M - 1;
-                for (int b = 0; b <= l; b++) {
+        for (int a = 0; a <= k; a++) {
+            ap = row + a;
+            am = row - a;
+            if (am < 0)
+                am = 0;
+            if (ap >= M)
+                ap = M - 1;
+            for (int b = 0; b <= l; b++) {
                     if (a == 0 && b == 0)
-                        v = F[threadID][j] * W[k][l];
+                        v = F[index] * W[k*n+l];
                     else {
-                        bp = j + b;
-                        bm = j - b;
+                        bp = col + b;
+                        bm = col - b;
                         if (bm < 0)
                             bm = 0;
                         if (bp >= N)
                             bp = N - 1;
                         if (a == 0) {
-                            v += F[threadID][bp] * W[k][l + b];
-                            v += F[threadID][bm] * W[k][l - b];
+                            v += F[row*N+bp] * W[k*n+(l + b)];
+                            v += F[row*N+bm] * W[k*n+(l - b)];
                         }
                         else if (b == 0) {
-                            v += F[ap][j] * W[k + a][l];
-                            v += F[am][j] * W[k - a][l];
+                            v += F[ap*N+col] * W[(k + a)*n+l];
+                            v += F[am*N+col] * W[(k - a)*n+l];
                         }
                         else {
-                            v += F[ap][bp] * W[k + a][l + b];
-                            v += F[ap][bm] * W[k + a][l - b];
-                            v += F[am][bp] * W[k - a][l + b];
-                            v += F[am][bm] * W[k - a][l - b];
+                            v += F[ap*N+bp] * W[(k + a)*n+(l + b)];
+                            v += F[ap*N+bm] * W[(k + a)*n+(l - b)];
+                            v += F[am*N+bp] * W[(k - a)*n+(l + b)];
+                            v += F[am*N+bm] * W[(k - a)*n+(l - b)];
                         }
                     }
-                }
-            }
-            V[threadID][j] = v;
-        }
+            }    
+        } 
+        V[index] = v ;
     }
+ 
 }
 
 void kernel(double** F, double** W, double** V, int M, int N, int m, int n) {
 
-    // Initialize device pointers.
-    double** d_F, ** d_W, ** d_V;
+    double* d_F, * d_W, * d_V;
 
-    // Allocate device memory.
-    cudaMalloc((void***)&d_F, M * sizeof(double*));
-    cudaMalloc((void***)&d_V, M * sizeof(double*)); 
-    cudaMalloc((void***)&d_W, m * sizeof(double*));
+    cudaMalloc((void**)&d_F, M * N * sizeof(double));
+    cudaMalloc((void**)&d_V, M * N * sizeof(double));
+    cudaMalloc((void**)&d_W, m * n * sizeof(double));
 
-    double** d_F1 = new double* [M];
-    double** d_V1 = new double* [M];
-    double** d_W1 = new double* [m];
-
+    double* h_F = new double[M * N];
     for (int i = 0; i < M; i++) {
-        cudaMalloc((void**)&(d_F1[i]), N * sizeof(double));
-        cudaMalloc((void**)&(d_V1[i]), N * sizeof(double));
-        cudaMemcpy(d_F1[i], F[i], N * sizeof(double), cudaMemcpyHostToDevice);
-        cudaMemcpy(d_V1[i], V[i], N * sizeof(double), cudaMemcpyHostToDevice);
+        for (int j = 0; j < N; j++) {
+            h_F[j + i * N] = F[i][j];
+        }
     }
-    cudaMemcpy(d_F, d_F1, M * sizeof(double*), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_V, d_V1, M * sizeof(double*), cudaMemcpyHostToDevice);
-    
+
+    double* h_W = new double[m * n];
     for (int i = 0; i < m; i++) {
-        cudaMalloc((void**)&(d_W1[i]), n * sizeof(double));
-        cudaMemcpy(d_W1[i], W[i], n * sizeof(double), cudaMemcpyHostToDevice);
+        for (int j = 0; j < n; j++) {
+            h_W[j + i * n] = W[i][j];
+        }
     }
-    cudaMemcpy(d_W, d_W1, m * sizeof(double*), cudaMemcpyHostToDevice);
 
-    // Calculate blocksize and gridsize.
-    dim3 blockSize(512, 1, 1);
-    dim3 gridSize(512 / M, 1);
+    cudaMemcpy(d_F, h_F, M * N * sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_W, h_W, m * n * sizeof(double), cudaMemcpyHostToDevice);
 
-    // Launch CUDA kernel.
-    transformareMatriceKernel << < gridSize, blockSize >> > (d_F,d_W,d_V,M,N,m,n);
+    dim3 blockSize(512,1,1);
+    dim3 gridSize(512 / M*N + 1, 1);
 
-    // Copy result array c back to host memory.  
-    cudaMemcpy(d_V1, d_V, M * sizeof(double*), cudaMemcpyDeviceToHost);
-    for (int i = 0; i < M; i++) {
-        cudaMemcpy(V[i], d_V1[i], N * sizeof(double), cudaMemcpyDeviceToHost);
-    }
-    cudaMemcpy(V, d_V, M * sizeof(double*), cudaMemcpyDeviceToHost);
+    transformareMatriceKernel << < gridSize, blockSize >> > (d_F, d_W, d_V, M, N, m, n);
+
+    double* h_V = new double[N * M];                   
+    cudaMemcpy(h_V, d_V, N * M * sizeof(double), cudaMemcpyDeviceToHost);
 
     for (int i = 0; i < M; i++) {
-        cudaFree(d_F1[i]);
-        cudaFree(d_V1[i]);
+        for (int j = 0; j < N; j++) {
+           V[i][j] = h_V[j + i * N];
+        }
     }
+    
+
     cudaFree(d_F);
-    cudaFree(d_V);
-    for (int i = 0; i < m; i++)
-        cudaFree(d_W1[i]);
     cudaFree(d_W);
+    cudaFree(d_V);
 
-    delete[] d_F1;
-    delete[] d_V1;
-    delete[] d_W1;
+    delete[] h_F, h_V, h_W;
 }

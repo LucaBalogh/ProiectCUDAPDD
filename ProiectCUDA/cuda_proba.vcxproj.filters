@@ -15,18 +15,24 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Header.cuh">
+    <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
-    </ClInclude>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <CudaCompile Include="Header.cuh">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
     <CudaCompile Include="File.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
+    <Text Include="data.txt">
       <Filter>Source Files</Filter>
-    </ClCompile>
+    </Text>
+    <Text Include="rezultat.txt">
+      <Filter>Source Files</Filter>
+    </Text>
   </ItemGroup>
 </Project>

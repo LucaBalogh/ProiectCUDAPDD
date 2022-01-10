@@ -149,15 +149,23 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>cudart_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <CudaCompile />
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="Header.cuh" />
+    <CudaCompile Include="Header.cuh" />
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="File.cu" />
+    <CudaCompile Include="File.cu">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <FileType>Document</FileType>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="data.txt" />
+    <Text Include="rezultat.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
